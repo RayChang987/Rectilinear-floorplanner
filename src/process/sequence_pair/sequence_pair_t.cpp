@@ -658,14 +658,15 @@ bool sequence_pair_t::is_completed() {
 // }
 
 
-void sequence_pair_t::to_rectilinear_and_plot(){
+void sequence_pair_t::to_rectilinear(){
     for(auto& e:this->is_in_seq){e = 1;}
     this->fill_near();
     this->set_bounding_lines();
     this->get_wirelength();
     this->get_wirelength_rectilinear();
     this->deal_bounding_line();
-    this->save_result();
+}
+void sequence_pair_t::plot_rectilinear(){
     visualizer_t::draw_bounding_line(this->bounding_lines);
     cout<<"Rectangle wirelength: "<<std::setprecision(16)<<this->predicted_wirelength<<endl;
     cout<<"Rectilinear wirelength: "<<std::setprecision(16)<<this->rectilinear_wirelength<<endl;
@@ -673,7 +674,6 @@ void sequence_pair_t::to_rectilinear_and_plot(){
     std::cout << "Rectilinear Flooplan is printed!" << std::endl;
     std::cout << "Press any key to continue" << std::endl;
     fgetc(stdin);
-    
 }
 
 void sequence_pair_t::save_result(){

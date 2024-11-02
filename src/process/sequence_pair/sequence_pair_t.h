@@ -33,7 +33,8 @@ public:
     bool find_position_allow_illegal(bool, bool, int, int);
     bool find_position_allow_illegal_process();
     void predict_wirelength(bool, bool);
-    void to_rectilinear_and_plot();
+    void to_rectilinear();
+    void plot_rectilinear();
     void save_result();
 
 
