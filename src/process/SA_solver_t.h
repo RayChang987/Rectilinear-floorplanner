@@ -30,7 +30,8 @@ class SA_solver_t {
     sequence_pair_t find_neighbor_sequential(sequence_pair_t);
 
     vector<int> swap_enable;
-    const bool need_practical = false;
+    const bool need_practical =
+        false;  // Whether to include routability assessment
     double t = 1, r = 0.999, end_t = 0.005;
     double time_limit = 0, it_average_time = 0;
     const int load_back_it = 100;

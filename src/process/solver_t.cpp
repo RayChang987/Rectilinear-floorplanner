@@ -45,6 +45,8 @@ void solver_t::SA_process(sequence_pair_enumerator_t& SPEN) {
     SPEN.valid_sequence_pairs[0].print_inline();
     SPEN.valid_sequence_pairs[0].sequence_pair_validation(1);
     SPEN.valid_sequence_pairs[0].to_rectilinear();
+    SPEN.valid_sequence_pairs[0].plot_rectilinear();
+    SPEN.valid_sequence_pairs[0].save_result_checker();
 }
 
 void solver_t::run() {

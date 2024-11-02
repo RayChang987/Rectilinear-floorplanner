@@ -47,12 +47,9 @@ void SA_solver_t::run(sequence_pair_enumerator_t& SPEN, double timeout,
         }
 
         this->it_timer.timer_start();
+
         sequence_pair_t& SP = SPEN.valid_sequence_pairs[0];
         sequence_pair_t after = find_neighbor_parallel(SP, overlap);
-        // sequence_pair_t after = find_neighbor_sequential(SP);
-
-        // double SP_wirelength = SP.actual_wirelength;
-        // double after_wirelength = after.actual_wirelength;
         double SP_wirelength = SP.lp_predicted_wirelength;
         double after_wirelength = after.lp_predicted_wirelength;
         if (after_wirelength != -1) {
@@ -66,15 +63,10 @@ void SA_solver_t::run(sequence_pair_enumerator_t& SPEN, double timeout,
             load_back_cnt++;
             if (load_back && SP_wirelength > 1.375 * best_wirelength) {
                 cout << "Load back..." << endl;
-                SP = best_sp;  // to avoid meaningless searching
+                SP = best_sp;  // To avoid meaningless searching
                 load_back_cnt = 0;
             }
         }
-        //        if(it%100==0){
-        //            double useless1 = best_sp.get_wirelength(true, true);
-        //            double useless2 =
-        //            SPEN.valid_sequence_pairs[0].get_wirelength(true, true);
-        //        }
         if (it % 1 == 0) {
             runtime_timer.print_time_elapsed();
             cout << "It : " << it << ", t = " << this->t << endl;
@@ -87,9 +79,6 @@ void SA_solver_t::run(sequence_pair_enumerator_t& SPEN, double timeout,
                  << SP_wirelength << endl;
             cout << "------------------------------" << endl;
         }
-        // if(it%1000==0){
-        //     SP.sequence_pair_validation(it);
-        // }
         runtime_timer.timer_end();
         if (runtime_timer.get_time_elapsed() >= timeout) {
             break;
@@ -105,7 +94,6 @@ void SA_solver_t::run(sequence_pair_enumerator_t& SPEN, double timeout,
 
         it++;
     }
-    // SPEN.validate_all_SP_print_all();
     SPEN.valid_sequence_pairs[0] =
         best_sp;  // reload the SP back into sequence pairs
     best_sp.sequence_pair_validation();
@@ -197,8 +185,13 @@ sequence_pair_t SA_solver_t::find_neighbor_parallel(sequence_pair_t SP,
     } else {
         thread_n = 6;
     }
-    thread_n =
-        std::min(thread_n, static_cast<double>(sequence_pair_t::sequence_n));
+    thread_n = std::min(
+        thread_n,
+        static_cast<double>(
+            sequence_pair_t::sequence_n));  // Important!! Due to
+                                            // multithreading, the number of
+                                            // thread should not be more than
+                                            // the number of the modules
     while (legal_neighbors.size()) {
         legal_neighbors.pop();
     }
@@ -222,17 +215,6 @@ sequence_pair_t SA_solver_t::find_neighbor_parallel(sequence_pair_t SP,
 
 double SA_solver_t::get_delta(sequence_pair_t& ori, sequence_pair_t& after,
                               bool overlap) {
-    // double ori_wirelength = ori.actual_wirelength;
-    // double after_wirelength = after.get_wirelength(true, false);
-    bool a, b;
-    if (overlap) {
-        a = ori.lp_predicted_wirelength;
-        b = after.lp_predicted_wirelength;
-    } else {
-        a = ori.find_position(true, true);
-        b = after.find_position(true, true);
-    }
-
     double ori_wirelength = ori.lp_predicted_wirelength;
     double after_wirelength = after.lp_predicted_wirelength;
     if (after_wirelength <= 0 || ori_wirelength <= 0) {
@@ -298,21 +280,7 @@ void find_neighbor_threads_i(int i_start, int i_end, vector<int>* rand_i,
                     bool success = false;
                     if (overlap) {
                         success =
-                            neighbor
-                                .find_position_allow_illegal_process();  // 6ms
-                                                                         // at
-                                                                         // most
-                                                                         // (the
-                                                                         // shapes
-                                                                         // of
-                                                                         // the
-                                                                         // neighbor
-                                                                         // SP
-                                                                         // were
-                                                                         // calculated)
-                        // success = neighbor.find_position(true, true, 0, 0);
-                        // //6ms at most  (the shapes of the neighbor SP were
-                        // calculated)
+                            neighbor.find_position_allow_illegal_process();
                         if (success) {
                             if (SA->need_practical) {
                                 neighbor.bounding_lines.resize(
@@ -330,9 +298,7 @@ void find_neighbor_threads_i(int i_start, int i_end, vector<int>* rand_i,
                             }
                         }
                     } else {
-                        success = neighbor.find_position(
-                            true, true);  // 6ms at most  (the shapes of the
-                                          // neighbor SP were calculated)
+                        success = neighbor.find_position(true, true);
                     }
                     if (success) {
                         double delta = SA->get_delta(SP, neighbor, overlap);
