@@ -25,51 +25,14 @@ class sequence_pair_t {
     friend class sp_ilp_settings_find_position_with_area_t;
 
    public:
-    // static functions
+    // Constructor
+    sequence_pair_t();
+
+    // Static functions
     static void init();
     static void build_graph();
     static vector<vec2d_t> find_w_h(
         uint32_t area, int);  // Calculate a legal shapes for a specific area
-
-    // Constructor
-    sequence_pair_t();
-
-    // Functions with the prefix 'find_position' find the corresponding
-    // floorplan
-    // based on the sequence pair
-    // and verify if the current sequence pair form the legal position
-    bool find_position(
-        bool, bool);  // Find the floorplan without given widths and heights
-    bool find_position_with_area(
-        bool, bool);  // Find the floorplan with given widths and heights
-    bool
-    find_position_allow_illegal_process();  // This function would call the two
-                                            // functions below. To generate the
-                                            // floorplans with overlapping
-    bool find_position_allow_illegal_fill(
-        bool, bool);  // Due to the overlapping, the area should be compensated
-    bool find_position_allow_illegal(
-        bool, bool);  // The actual function for generating the floorplans
-
-    void to_rectilinear();    // Generate bounding lines from a overlapped
-                              // floorplan
-    void plot_rectilinear();  // This function requires the 'bounding_lines' to
-                              // be set!
-    void save_result_checker();
-
-    // get & set
-    void swap_v(int, int);
-    void swap_h(int, int);
-    void set_v(std::vector<int>);
-    void set_h(std::vector<int>);
-    void set_vi(int, int);
-    void set_hi(int, int);
-    void set_module_size(int i, int j);
-    void set_is_in_seq(int);
-    int get_vi(int);
-    int get_hi(int);
-    std::vector<int> get_v();
-    std::vector<int> get_h();
 
     // Static properties
     static int sequence_n;            // Number of sequences number
@@ -114,6 +77,44 @@ class sequence_pair_t {
     vector<int> carved;
     vector<int> allow_to_overlap;
 
+    // Functions with the prefix 'find_position' find the corresponding
+    // floorplan
+    // based on the sequence pair
+    // and verify if the current sequence pair form the legal position
+    bool find_position(
+        bool, bool);  // Find the floorplan without given widths and heights
+    bool find_position_with_area(
+        bool, bool);  // Find the floorplan with given widths and heights
+    bool
+    find_position_allow_illegal_process();  // This function would call the two
+                                            // functions below. To generate the
+                                            // floorplans with overlapping
+    bool find_position_allow_illegal_fill(
+        bool, bool);  // Due to the overlapping, the area should be compensated
+    bool find_position_allow_illegal(
+        bool, bool);  // The actual function for generating the floorplans
+
+    void to_rectilinear();    // Generate bounding lines from a overlapped
+                              // floorplan
+    void plot_rectilinear();  // This function requires the 'bounding_lines' to
+                              // be set!
+
+    // Check whether the resulting rectilinear floorplan is legal
+    void check_rectilinear_result(bool);
+
+    // get & set
+    void swap_v(int, int);
+    void swap_h(int, int);
+    void set_v(std::vector<int>);
+    void set_h(std::vector<int>);
+    void set_vi(int, int);
+    void set_hi(int, int);
+    void set_module_size(int, int);
+    void set_is_in_seq(int);
+    int get_vi(int);
+    int get_hi(int);
+    std::vector<int> get_v();
+    std::vector<int> get_h();
     vector<vec2d_t> get_4_points(vec2d_t, vec2d_t);
     vector<int> get_correct_area();
     vector<int> get_correct_compensation();
@@ -131,27 +132,6 @@ class sequence_pair_t {
     void print_result();
     void set_bounding_lines();
     bool check_area_ratio();
-
-   private:
-    // Properties for LP
-    int constraint_n, constraint_i, variable_n;
-    int x_module_offset, y_module_offset, x_edge_offset_l, x_edge_offset_r,
-        y_edge_offset_l, y_edge_offset_r, x_overlap, y_overlap;
-    int near_x_offset, near_y_offset;
-    vector<vector<int>> near_x_map, near_y_map;
-    vector<vector<int>> near_x_id, near_y_id;
-    vector<int> shape_types;
-    vector<vector<int>> near_x, near_y;
-    ILP_solver_t ILP_solver;
-    ILP_result_t ILP_result;
-    vector<vector<int>> result_carving_x, result_carving_y;
-    vector<bool> result_carving_x_enable, result_carving_y_enable;
-    vector<edge_t> constraint_graph_h, constraint_graph_v;
-    vector<vector<int>> is_transitive_h, is_transitive_v;
-
-    // Debug properties
-    vector<pair<double, double>> logs;
-
     // Initialization
     void set_only_fix();
     bool is_completed();  // Check whether all modules are in the sequence and
@@ -176,6 +156,26 @@ class sequence_pair_t {
     void print_fix_sequence();
     void print_connections();
     void print_wirelength();
+
+   private:
+    // Properties for LP
+    int constraint_n, constraint_i, variable_n;
+    int x_module_offset, y_module_offset, x_edge_offset_l, x_edge_offset_r,
+        y_edge_offset_l, y_edge_offset_r, x_overlap, y_overlap;
+    int near_x_offset, near_y_offset;
+    vector<vector<int>> near_x_map, near_y_map;
+    vector<vector<int>> near_x_id, near_y_id;
+    vector<int> shape_types;
+    vector<vector<int>> near_x, near_y;
+    ILP_solver_t ILP_solver;
+    ILP_result_t ILP_result;
+    vector<vector<int>> result_carving_x, result_carving_y;
+    vector<bool> result_carving_x_enable, result_carving_y_enable;
+    vector<edge_t> constraint_graph_h, constraint_graph_v;
+    vector<vector<int>> is_transitive_h, is_transitive_v;
+
+    // Debug properties
+    vector<pair<double, double>> logs;
 };
 
 #endif  // ICCAD2023PD_SEQUENCE_PAIR_T_H

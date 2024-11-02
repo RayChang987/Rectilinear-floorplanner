@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     try {
         argument = argumentParser(argc, argv, usage);
     } catch (std::exception& e) {
-        std::cerr << e.what() << std::endl;
+        logger_t::error({e.what()});
     }
     if (argument.has("i")) {
         io_handler_t::input_file_name = argument.get("i");
@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     if (argument.has("t")) {
         tester_t tester;
         tester.test_sp();
-        std::cout << "Press any key to end the program" << std::endl;
+        logger_t::action({"Press any key to end the program"});
         fgetc(stdin);
     } else {
         solver_t solver;

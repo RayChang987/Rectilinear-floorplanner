@@ -11,7 +11,7 @@ include_directories(${glpk_prefix}/include)
 
 add_library(process ${SRC_FILE} ${HEADER_FILE})
 
-if (APPLE) 
+if (APPLE)
     target_link_libraries(process ${glpk_prefix}/lib/libglpk_mac.a)
 else ()
     target_link_libraries(process ${glpk_prefix}/lib/libglpk.a)

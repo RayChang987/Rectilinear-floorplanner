@@ -23,7 +23,6 @@
 #include "sp_ilp_settings_t.h"
 #include "static_data/fp_rule_t.cpp"  //how bad
 #include "static_data/io_handler_t.h"
-
 int sequence_pair_t::sequence_n;
 int sequence_pair_t::fix_start_idx;
 int sequence_pair_t::fixed_n;
@@ -321,7 +320,6 @@ void sequence_pair_t::sequence_pair_validation() {
                              "s" + std::to_string(i)});
         }
     }
-    // visualizer_t::show_fp_rect_no_border(rects, "SQP");
     std::vector<std::pair<std::vector<vec2d_t>, std::string>> bounding_lines;
     for (auto rect : rects) {
         bounding_lines.push_back({rect.first.to_bounding_point(), rect.second});
@@ -720,33 +718,40 @@ bool sequence_pair_t::is_completed() {
 void sequence_pair_t::to_rectilinear() {
     this->set_is_in_seq(1);
     this->fill_near();
-    this->set_bounding_lines();
+    this->overlap_optimization();
+    this->carve();
     this->get_wirelength();
+    this->set_bounding_lines();
     this->get_wirelength_rectilinear();
     this->deal_bounding_line();
 }
 void sequence_pair_t::plot_rectilinear() {
     visualizer_t::draw_bounding_line(this->bounding_lines);
-    cout << "Rectangle wirelength: " << std::setprecision(16)
-         << this->actual_wirelength << endl;
-    cout << "Rectilinear wirelength: " << std::setprecision(16)
-         << this->rectilinear_wirelength << endl;
-    cout << std::setprecision(2)
-         << (this->actual_wirelength - this->rectilinear_wirelength) /
-                this->actual_wirelength * 100
-         << "% optimization" << endl;
-    std::cout << "Rectilinear Flooplan is printed!" << std::endl;
-    std::cout << "Press any key to continue" << std::endl;
+    logger_t::info(
+        {"Rectangle wirelength: " +
+         logger_t::to_string_with_precision(this->actual_wirelength, 2)});
+    logger_t::info(
+        {"Rectilinear wirelength: " +
+         logger_t::to_string_with_precision(this->rectilinear_wirelength, 2)});
+    double optimization =
+        (this->actual_wirelength - this->rectilinear_wirelength) /
+        this->actual_wirelength * 100;
+
+    logger_t::info({logger_t::to_string_with_precision(optimization, 2) +
+                    "% optimization"});
+    logger_t::info({"Rectilinear Flooplan is printed!"});
+    logger_t::action({"Press any key to continue"});
     fgetc(stdin);
 }
 
-void sequence_pair_t::save_result_checker() {
+void sequence_pair_t::check_rectilinear_result(bool save) {
     int soft = chip_t::get_soft_modules().size();
     std::fstream file(io_handler_t::output_checker_file_name + "/check.txt",
                       std::fstream::out);
     int total_vertexes = 0;
     int total_edges = 0;
     int total_vertexes270 = 0;
+    bool legal = true;
     for (int i = 0; i < soft; ++i) {
         bounding_line_t bd = bounding_line_t(this->bounding_lines[i].first);
         double area = bd.get_area();
@@ -759,29 +764,158 @@ void sequence_pair_t::save_result_checker() {
         total_edges += ed;
         int ver270 = bd.get_vertex270_count();
         total_vertexes270 += ver270;
-        file << std::setw(3) << this->bounding_lines[i].second << ", ";
-        file << ((ratio <= 2 && ratio >= 0.5 && percent >= 0.8) ? "TRUE"
-                                                                : "FALSE")
-             << ", ";
-        file << std::setprecision(16) << std::setw(8) << area << ", ";
-        file << std::fixed << std::setw(5) << std::setprecision(3) << ratio
-             << ", ";
-        file << std::fixed << std::setw(5) << std::setprecision(3) << percent
-             << ", ";
-        file << std::defaultfloat << std::setprecision(16) << std::setw(2)
-             << ver << ", ";
-        file << std::setw(2) << ed << ", ";
-        file << std::setw(2) << ver270 << ", ";
-        for (auto pos : bd.get_nodes()) {
-            file << pos << " | ";
+        bool module_i_legal = (ratio <= 2 && ratio >= 0.5 && percent >= 0.8);
+        legal &= module_i_legal;
+        if (save) {
+            file << std::setw(3) << this->bounding_lines[i].second << ", ";
+            file << (module_i_legal ? "TRUE" : "FALSE") << ", ";
+            file << std::setprecision(16) << std::setw(8) << area << ", ";
+            file << std::fixed << std::setw(5) << std::setprecision(3) << ratio
+                 << ", ";
+            file << std::fixed << std::setw(5) << std::setprecision(3)
+                 << percent << ", ";
+            file << std::defaultfloat << std::setprecision(16) << std::setw(2)
+                 << ver << ", ";
+            file << std::setw(2) << ed << ", ";
+            file << std::setw(2) << ver270 << ", ";
+            for (auto pos : bd.get_nodes()) {
+                file << pos << " | ";
+            }
+            file << endl;
         }
-        file << endl;
     }
-    file << this->rectilinear_wirelength << endl;
-    file << total_vertexes << endl;
-    file << total_edges << endl;
-    file << total_vertexes270 << endl;
-    file.close();
+    if (legal) {
+        logger_t::success({"Legal Resulting Floorplan!!"});
+    } else {
+        logger_t::error({"Illegal Resulting Floorplan!!"});
+    }
+    if (save) {
+        file << this->rectilinear_wirelength << endl;
+        file << total_vertexes << endl;
+        file << total_edges << endl;
+        file << total_vertexes270 << endl;
+        file.close();
+    }
+}
+
+void sequence_pair_t::carve() {
+    this->bounding_lines.clear();
+    this->bounding_lines.resize(sequence_n);
+    this->carved = vector<int>(sequence_n, false);
+    this->result_carving_x_enable =
+        vector<bool>(this->result_carving_x.size(), false);
+    this->result_carving_y_enable =
+        vector<bool>(this->result_carving_y.size(), false);
+    for (int i = 0; i < this->result_carving_x.size(); ++i) {
+        int from = result_carving_x[i][0], to = result_carving_x[i][1],
+            h = result_carving_x[i][2];
+        vec2d_t ll_from = this->modules_positions[from];
+        vec2d_t from_wh = this->modules_wh[from];
+        vec2d_t ll_to = this->modules_positions[to];
+        vec2d_t to_wh = this->modules_wh[to];
+        int car_top_y = std::min(ll_from.get_y() + from_wh.get_y(),
+                                 ll_to.get_y() + to_wh.get_y());
+        int car_bot_y = std::max(ll_from.get_y(), ll_to.get_y());
+        int car_mid_y = (car_top_y + car_bot_y) / 2;
+        if (car_top_y - car_bot_y < 2) {
+            continue;
+        }
+        this->result_carving_x_enable[i] = true;
+        this->carved[from] = this->carved[to] = true;
+        vector<vec2d_t> from_4_points = this->get_4_points(ll_from, from_wh);
+        vector<vec2d_t> to_4_points = this->get_4_points(ll_to, to_wh);
+        vec2d_t c1 = vec2d_t(ll_from.get_x() + from_wh.get_x(), car_top_y);
+        vec2d_t c2 = vec2d_t(ll_from.get_x() + from_wh.get_x() - h, car_top_y);
+        vec2d_t c3 = vec2d_t(ll_from.get_x() + from_wh.get_x() - h, car_mid_y);
+        vec2d_t c4 = vec2d_t(ll_from.get_x() + from_wh.get_x() + h, car_mid_y);
+        vec2d_t c5 = vec2d_t(ll_from.get_x() + from_wh.get_x() + h, car_bot_y);
+        vec2d_t c6 = vec2d_t(ll_from.get_x() + from_wh.get_x(), car_bot_y);
+        vec2d_t c7 = vec2d_t(ll_from.get_x() + from_wh.get_x(), car_mid_y);
+        // bouding_lines[from] = {{from_4_points[0], from_4_points[1],
+        // from_4_points[2], c1, c2,c3,c4, c5, c6, from_4_points[3]},
+        // "s"+std::to_string(from)}; bouding_lines[to] = {{to_4_points[0], c6,
+        // c5, c4, c3,c2,c1,to_4_points[1], to_4_points[2], to_4_points[3]},
+        // "s"+std::to_string(to)};
+
+        bounding_line_t bd_from = bounding_line_t(
+            rect_t(this->modules_positions[from], this->modules_wh[from])
+                .get_bounding_rect());
+        bounding_line_t bd_from_add = bounding_line_t({c4, c5, c6, c7});
+        bounding_line_t bd_from_minus =
+            bounding_line_t({c7, c3, c2, c1}, false);
+        bd_from =
+            bounding_line_t::merge(bd_from, bd_from_add).difference_pos_line[0];
+        bd_from = bounding_line_t::merge(bd_from, bd_from_minus)
+                      .difference_pos_line[0];
+        bounding_line_t bd_to = bounding_line_t(
+            rect_t(this->modules_positions[to], this->modules_wh[to])
+                .get_bounding_rect());
+        bounding_line_t bd_to_add = bounding_line_t({c7, c3, c2, c1});
+        bounding_line_t bd_to_minus = bounding_line_t({c4, c5, c6, c7}, false);
+        bd_to = bounding_line_t::merge(bd_to, bd_to_add).difference_pos_line[0];
+        bd_to =
+            bounding_line_t::merge(bd_to, bd_to_minus).difference_pos_line[0];
+        this->bounding_lines[from] = {bd_from.get_nodes(),
+                                      "s" + std::to_string(from)};
+        this->bounding_lines[to] = {bd_to.get_nodes(),
+                                    "s" + std::to_string(to)};
+    }
+
+    for (int i = 0; i < this->result_carving_y.size(); ++i) {
+        int from = result_carving_y[i][0], to = result_carving_y[i][1],
+            h = result_carving_y[i][2];
+        vec2d_t ll_from = this->modules_positions[from];
+        vec2d_t from_wh = this->modules_wh[from];
+        vec2d_t ll_to = this->modules_positions[to];
+        vec2d_t to_wh = this->modules_wh[to];
+        int car_right_x = std::min(ll_from.get_x() + from_wh.get_x(),
+                                   ll_to.get_x() + to_wh.get_x());
+        int car_left_x = std::max(ll_from.get_x(), ll_to.get_x());
+        int car_mid_x = (car_right_x + car_left_x) / 2;
+        if (car_right_x - car_left_x < 2) {
+            continue;
+        }
+        this->result_carving_y_enable[i] = true;
+        this->carved[from] = this->carved[to] = true;
+        vector<vec2d_t> from_4_points = this->get_4_points(ll_from, from_wh);
+        vector<vec2d_t> to_4_points = this->get_4_points(ll_to, to_wh);
+        vec2d_t c1 = vec2d_t(car_left_x, ll_from.get_y() + from_wh.get_y());
+        vec2d_t c2 = vec2d_t(car_left_x, ll_from.get_y() + from_wh.get_y() + h);
+        vec2d_t c3 = vec2d_t(car_mid_x, ll_from.get_y() + from_wh.get_y() + h);
+        vec2d_t c4 = vec2d_t(car_mid_x, ll_from.get_y() + from_wh.get_y() - h);
+        vec2d_t c5 =
+            vec2d_t(car_right_x, ll_from.get_y() + from_wh.get_y() - h);
+        vec2d_t c6 = vec2d_t(car_right_x, ll_from.get_y() + from_wh.get_y());
+        vec2d_t c7 = vec2d_t(car_mid_x, ll_from.get_y() + from_wh.get_y());
+        // bouding_lines[from] = {{from_4_points[0], from_4_points[1],
+        // c1,c2,c3,c4,c5, c6, from_4_points[2], from_4_points[3]},
+        // "s"+std::to_string(from)}; bouding_lines[to] = {{to_4_points[0],
+        // to_4_points[1], to_4_points[2],to_4_points[3], c6,c5,c4,c3,c2,c1},
+        // "s"+std::to_string(to)};
+
+        bounding_line_t bd_from = bounding_line_t(
+            rect_t(this->modules_positions[from], this->modules_wh[from])
+                .get_bounding_rect());
+        bounding_line_t bd_from_add = bounding_line_t({c1, c2, c3, c7});
+        bounding_line_t bd_from_minus =
+            bounding_line_t({c7, c6, c5, c4}, false);
+        bd_from =
+            bounding_line_t::merge(bd_from, bd_from_add).difference_pos_line[0];
+        bd_from = bounding_line_t::merge(bd_from, bd_from_minus)
+                      .difference_pos_line[0];
+        bounding_line_t bd_to = bounding_line_t(
+            rect_t(this->modules_positions[to], this->modules_wh[to])
+                .get_bounding_rect());
+        bounding_line_t bd_to_add = bounding_line_t({c7, c6, c5, c4});
+        bounding_line_t bd_to_minus = bounding_line_t({c1, c2, c3, c7}, false);
+        bd_to = bounding_line_t::merge(bd_to, bd_to_add).difference_pos_line[0];
+        bd_to =
+            bounding_line_t::merge(bd_to, bd_to_minus).difference_pos_line[0];
+        this->bounding_lines[from] = {bd_from.get_nodes(),
+                                      "s" + std::to_string(from)};
+        this->bounding_lines[to] = {bd_to.get_nodes(),
+                                    "s" + std::to_string(to)};
+    }
 }
 
 void sequence_pair_t::set_add_order() {
@@ -1111,7 +1245,7 @@ void sequence_pair_t::fill_near() {
                         1.949 * modules_wh[j].get_y() - modules_wh[j].get_x());
 
                     int h = std::min(ih, jh);
-                    // cout<< i<<" "<<j<<" "<<h<<endl;
+                    // cerr<< i<<" "<<j<<" "<<h<<endl;
                     near_x.push_back({i, j, h});
                     near_x_id[j][i] = near_x_id[i][j] = ix++;
                     near_x_map[i].push_back(j);
@@ -1154,7 +1288,7 @@ void sequence_pair_t::fill_near() {
                         1.949 * modules_wh[j].get_x() - modules_wh[j].get_y());
                     int h = std::min(ih, jh);
 
-                    // cout<< i<<" "<<j<<" "<<h<<endl;
+                    // cerr<< i<<" "<<j<<" "<<h<<endl;
                     near_y_id[j][i] = near_y_id[i][j] = iy++;
                     near_y.push_back({i, j, h});
                     near_y_map[i].push_back(j);
@@ -1348,10 +1482,6 @@ double sequence_pair_t::get_wirelength_rectilinear() {
         double delta_y = y_max - y_min;
         sum += (delta_x + delta_y) * connections[i].w;
     }
-    cout << "Actual : " << std::setprecision(16) << this->actual_wirelength
-         << endl;
-    cout << "LP result : " << std::setprecision(16) << this->ILP_result.z
-         << endl;
     return this->rectilinear_wirelength = sum;
 }
 

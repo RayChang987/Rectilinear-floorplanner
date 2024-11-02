@@ -39,14 +39,14 @@ void solver_t::SA_process(sequence_pair_enumerator_t& SPEN) {
     }
     SA_solver_t SA_solver;
     double time_left = std::min(this->get_time_left(), this->SA_runtime);
-    SA_solver.run(SPEN, 0.6 * time_left, 0.05, 0.008, false, 0, 1, false);
-    SA_solver.run(SPEN, 0.4 * time_left, 0.05, 0.008, false, 0, 1, true);
+    SA_solver.run(SPEN, 0.8 * time_left, 0.05, 0.008, false, 0, 1, true);
+    SA_solver.run(SPEN, 0.2 * time_left, 0.05, 0.008, false, 0, 1, true);
     SPEN.updated_best_SP();
     SPEN.valid_sequence_pairs[0].print_inline();
     SPEN.valid_sequence_pairs[0].sequence_pair_validation(1);
     SPEN.valid_sequence_pairs[0].to_rectilinear();
     SPEN.valid_sequence_pairs[0].plot_rectilinear();
-    SPEN.valid_sequence_pairs[0].save_result_checker();
+    SPEN.valid_sequence_pairs[0].check_rectilinear_result(true);
 }
 
 void solver_t::run() {

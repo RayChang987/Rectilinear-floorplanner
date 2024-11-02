@@ -39,8 +39,8 @@ class solver_t {
 
     void test_parallel();
 
-    double runtime = 40 * 60 * 1000, SA_runtime = 0.1 * 60 * 1000,
-           init_timeout = 20 * 60 * 1000;  // ms
+    double runtime = 40 * 60 * 1000, SA_runtime = 1 * 60 * 1000,
+           init_timeout = 2 * 60 * 1000;  // ms
     bool invalid_input = false;
     timer runtime_timer = timer("run time");
 };
