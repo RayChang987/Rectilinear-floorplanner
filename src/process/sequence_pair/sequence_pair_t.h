@@ -133,7 +133,7 @@ class sequence_pair_t {
     bool check_area_ratio();
 
    private:
-    // properties for LP
+    // Properties for LP
     int constraint_n, constraint_i, variable_n;
     int x_module_offset, y_module_offset, x_edge_offset_l, x_edge_offset_r,
         y_edge_offset_l, y_edge_offset_r, x_overlap, y_overlap;
@@ -154,15 +154,15 @@ class sequence_pair_t {
 
     // Initialization
     void set_only_fix();
+    bool is_completed();  // Check whether all modules are in the sequence and
+                          // solvable for LP
     void init_modules_size();
     void set_fix_sequence();
     void set_add_order();
 
+    // Functions for LP
     vector<vec2d_t> get_LP_res_pos();
     pair<vector<vec2d_t>, vector<int>> get_LP_res_wh();
-
-    // Subfunctions
-    bool is_completed();
     void build_constraint_graph();
     void simplify_constraint_graph();
     void mark_transitive_edge();

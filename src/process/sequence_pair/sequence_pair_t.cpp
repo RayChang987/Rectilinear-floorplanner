@@ -703,13 +703,13 @@ void sequence_pair_t::print_result() {
 }
 
 bool sequence_pair_t::is_completed() {
-    // first, check all soft modules are in the sequence
+    // Check all soft modules are in the sequence
     for (int i = 0; i < sequence_pair_t::sequence_n; ++i) {
         if (this->is_in_seq[i] == 0) {
             return false;
         }
     }
-    // then find the position of each module
+    // Find the position of each module
     bool success = this->find_position_with_area(false, false);
     // bool success = this->find_position(false,false,0, 0);
     if (success) {
