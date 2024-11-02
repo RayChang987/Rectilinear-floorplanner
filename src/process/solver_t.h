@@ -5,31 +5,31 @@
 #ifndef INC_2023PD_GENETIC_ALGO_T_H
 #define INC_2023PD_GENETIC_ALGO_T_H
 
-#include "polygon/polygon_forest_t.h"
-#include "static_data/chip_t.h"
-#include "process/sequence_pair/sequence_pair_t.h"
-#include <map>
-#include <set>
+#include <time.h>
+
 #include <algorithm>
 #include <iterator>
+#include <map>
 #include <random>
-#include <time.h>
-#include "process/sequence_pair/sequence_pair_enumerator_t.h"
+#include <set>
 
+#include "polygon/polygon_forest_t.h"
+#include "process/sequence_pair/sequence_pair_enumerator_t.h"
+#include "process/sequence_pair/sequence_pair_t.h"
+#include "static_data/chip_t.h"
 
 class quad_sequence_t;
 
 class solver_t {
-
-public:
-    //essential functions
+   public:
+    // essential functions
     solver_t();
 
     void SA_process(sequence_pair_enumerator_t&);
 
     void run();
 
-    double get_time_left(); //ms
+    double get_time_left();  // ms
 
     void set_timer_start();
 
@@ -39,11 +39,10 @@ public:
 
     void test_parallel();
 
-    
-    
-    double runtime = 40*60*1000, SA_runtime = 0.1*60*1000, init_timeout = 20*60*1000; // ms
+    double runtime = 40 * 60 * 1000, SA_runtime = 0.1 * 60 * 1000,
+           init_timeout = 20 * 60 * 1000;  // ms
     bool invalid_input = false;
     timer runtime_timer = timer("run time");
 };
 
-#endif //INC_2023PD_GENETIC_ALGO_T_H
+#endif  // INC_2023PD_GENETIC_ALGO_T_H

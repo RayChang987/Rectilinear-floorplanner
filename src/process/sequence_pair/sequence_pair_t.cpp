@@ -26,16 +26,13 @@
 
 int sequence_pair_t::sequence_n;
 int sequence_pair_t::fix_start_idx;
-int sequence_pair_t::fix_n;
+int sequence_pair_t::fixed_n;
 int sequence_pair_t::soft_n;
 int sequence_pair_t::connection_graph_deg;
 vector<bool> sequence_pair_t::seq_is_fix;
 vector<soft_module_t*> sequence_pair_t::seq_soft_map;
 vector<fixed_module_t*> sequence_pair_t::seq_fixed_map;
-unordered_map<const module_t*, int> sequence_pair_t::soft_module_to_id_m;
-unordered_map<const module_t*, int> sequence_pair_t::fix_module_to_id_m;
 vector<net_t> sequence_pair_t::connections;
-vector<vector<int>> sequence_pair_t::connections_VE;
 vector<pair<int, int>> sequence_pair_t::deg_w;
 vector<double> sequence_pair_t::modules_area;
 using std::cout;
@@ -46,7 +43,7 @@ void sequence_pair_t::init() {
         chip_t::get_soft_modules();
     const std::vector<fixed_module_t*>& fixed_modules =
         chip_t::get_fixed_modules();
-    sequence_pair_t::fix_n =
+    sequence_pair_t::fixed_n =
         static_cast<int>(chip_t::get_fixed_modules().size());
     sequence_pair_t::soft_n =
         static_cast<int>(chip_t::get_soft_modules().size());
@@ -59,11 +56,6 @@ void sequence_pair_t::init() {
     sequence_pair_t::seq_is_fix.resize(chip_t::get_total_module_n());
     sequence_pair_t::modules_area.resize(chip_t::get_total_module_n());
 
-    connections_VE.resize(sequence_n);
-    for (int i = 0; i < sequence_n; ++i) {
-        connections_VE[i].resize(sequence_n);
-    }
-
     deg_w = vector<pair<int, int>>(sequence_n, {0, 0});
 
     // build up the map between module and sequence number
@@ -73,7 +65,7 @@ void sequence_pair_t::init() {
         sequence_pair_t::modules_area[j] = soft_modules[i]->get_area();
         sequence_pair_t::seq_fixed_map[j] = nullptr;
         sequence_pair_t::seq_is_fix[j] = false;
-        sequence_pair_t::soft_module_to_id_m[soft_modules[i]] = j;
+        // sequence_pair_t::soft_module_to_id_m[soft_modules[i]] = j;
         j++;
     }
     for (int i = 0; i < fixed_modules.size(); ++i) {
@@ -81,7 +73,7 @@ void sequence_pair_t::init() {
         sequence_pair_t::modules_area[j] = fixed_modules[i]->get_area();
         sequence_pair_t::seq_soft_map[j] = nullptr;
         sequence_pair_t::seq_is_fix[j] = true;
-        sequence_pair_t::fix_module_to_id_m[fixed_modules[i]] = j;
+        // sequence_pair_t::fix_module_to_id_m[fixed_modules[i]] = j;
         j++;
     }
 
@@ -104,7 +96,7 @@ sequence_pair_t::sequence_pair_t() {
         j++;
     }
     init_modules_size();
-    set_is_in_seq();
+    set_is_in_seq(0);
     set_only_fix();
     set_add_order();
 }
@@ -215,8 +207,8 @@ pair<vector<vec2d_t>, vector<int>> sequence_pair_t::get_LP_res_wh() {
     }
     return {result_wh, result_wh_i};
 }
-bool sequence_pair_t::find_position(bool minimize_wirelength, bool load_result,
-                                    int overlap_h, int overlap_v) {
+bool sequence_pair_t::find_position(bool minimize_wirelength,
+                                    bool load_result) {
     build_constraint_graph();
     simplify_constraint_graph();
     constraint_n = this->constraint_graph_h.size() +
@@ -307,7 +299,7 @@ bool sequence_pair_t::find_position(bool minimize_wirelength, bool load_result,
             }
             this->modules_wh_i = result_wh_i;
 
-            this->z = ILP_result.z;
+            this->lp_predicted_wirelength = ILP_result.z;
         }
         return true;
     } else {
@@ -511,11 +503,11 @@ void sequence_pair_t::set_module_size(int i, int j) {
 }
 
 void sequence_pair_t::set_fix_sequence() {
-    if (sequence_pair_t::fix_n == 0) {
+    if (sequence_pair_t::fixed_n == 0) {
         return;
     }
-    for (int i = 0; i < sequence_pair_t::fix_n; ++i) {
-        this->fix_sequence_h[i] = this->fix_sequence_v[i] =
+    for (int i = 0; i < sequence_pair_t::fixed_n; ++i) {
+        this->fix_h_sequence[i] = this->fix_v_sequence[i] =
             i + sequence_pair_t::fix_start_idx;
     }
     vector<vector<int>> fix_constraint_v(
@@ -612,21 +604,21 @@ void sequence_pair_t::set_fix_sequence() {
             }
         }
     }
-    this->fix_sequence_v = upd_v;
-    this->fix_sequence_h = upd_h;
+    this->fix_v_sequence = upd_v;
+    this->fix_h_sequence = upd_h;
 }
 void sequence_pair_t::set_only_fix() {
-    this->fix_sequence_v.clear();
-    this->fix_sequence_h.clear();
+    this->fix_v_sequence.clear();
+    this->fix_h_sequence.clear();
     this->v_sequence.clear();
     this->h_sequence.clear();
-    this->fix_sequence_v.resize(fix_n);
-    this->fix_sequence_h.resize(fix_n);
+    this->fix_v_sequence.resize(fixed_n);
+    this->fix_h_sequence.resize(fixed_n);
 
     this->set_fix_sequence();
 
-    this->v_sequence = fix_sequence_v;
-    this->h_sequence = fix_sequence_h;
+    this->v_sequence = fix_v_sequence;
+    this->h_sequence = fix_h_sequence;
     for (int i = sequence_pair_t::fix_start_idx;
          i < sequence_pair_t::sequence_n; ++i) {
         this->is_in_seq[i] = 1;
@@ -650,26 +642,26 @@ void sequence_pair_t::init_modules_size() {
     }
 }
 
-void sequence_pair_t::set_is_in_seq() {
+void sequence_pair_t::set_is_in_seq(int value) {
     is_in_seq.resize(sequence_pair_t::sequence_n);
     for (int i = 0; i < sequence_pair_t::sequence_n; ++i) {
-        is_in_seq[i] = 0;
+        is_in_seq[i] = value;
     }
 }
 
 void sequence_pair_t::print_fix_sequence() {
     cout << "v: [";
-    for (int i = 0; i < this->fix_sequence_v.size(); ++i) {
-        cout << this->fix_sequence_v[i];
-        if (i != this->fix_sequence_v.size() - 1) {
+    for (int i = 0; i < this->fix_v_sequence.size(); ++i) {
+        cout << this->fix_v_sequence[i];
+        if (i != this->fix_v_sequence.size() - 1) {
             cout << ", ";
         }
     }
     cout << "] ";
     cout << "h: [";
-    for (int i = 0; i < this->fix_sequence_h.size(); ++i) {
-        cout << this->fix_sequence_h[i];
-        if (i != this->fix_sequence_h.size() - 1) {
+    for (int i = 0; i < this->fix_h_sequence.size(); ++i) {
+        cout << this->fix_h_sequence[i];
+        if (i != this->fix_h_sequence.size() - 1) {
             cout << ", ";
         }
     }
@@ -718,44 +710,15 @@ bool sequence_pair_t::is_completed() {
         }
     }
     // then find the position of each module
-    bool success = this->find_position_with_area(false, false, 0, 0);
+    bool success = this->find_position_with_area(false, false);
     // bool success = this->find_position(false,false,0, 0);
     if (success) {
         return true;
     }
     return false;
 }
-
-// void sequence_pair_t::predict_wirelength(bool minimize_wirelength, bool
-// with_area) {
-//     vector<vec2d_t> pos = this->modules_positions;
-//     double sum = 0;
-//     for(int i = 0; i<connections.size();++i){
-//         double x_min = 1e9, y_min = 1e9, x_max = -1, y_max = -1;
-//         for(int j = 0; j<connections[i].nodes.size(); ++j){
-//             int v = connections[i].nodes[j];
-//             vec2d_t center_v =
-//             {pos[v].get_x()+this->modules_wh[v].get_half_x(),
-//             pos[v].get_y()+this->modules_wh[v].get_half_y()}; double v_x =
-//             center_v.get_x(), v_y = center_v.get_y(); x_min = std::min(x_min,
-//             v_x); x_max = std::max(x_max, v_x); y_min = std::min(y_min, v_y);
-//             y_max = std::max(y_max, v_y);
-//         }
-//         double delta_x = x_max-x_min;
-//         double delta_y = y_max-y_min;
-//         sum+= (delta_x+delta_y)*connections[i].w;
-//     }
-//     this->predicted_wirelength = sum;
-//     // cout<< "Actual :
-//     "<<std::setprecision(16)<<this->predicted_wirelength<<endl;
-//     // cout<< "LP result :
-//     "<<std::setprecision(16)<<this->ILP_result.z<<endl;
-// }
-
 void sequence_pair_t::to_rectilinear() {
-    for (auto& e : this->is_in_seq) {
-        e = 1;
-    }
+    this->set_is_in_seq(1);
     this->fill_near();
     this->set_bounding_lines();
     this->get_wirelength();
@@ -765,12 +728,12 @@ void sequence_pair_t::to_rectilinear() {
 void sequence_pair_t::plot_rectilinear() {
     visualizer_t::draw_bounding_line(this->bounding_lines);
     cout << "Rectangle wirelength: " << std::setprecision(16)
-         << this->predicted_wirelength << endl;
+         << this->actual_wirelength << endl;
     cout << "Rectilinear wirelength: " << std::setprecision(16)
          << this->rectilinear_wirelength << endl;
     cout << std::setprecision(2)
-         << (this->predicted_wirelength - this->rectilinear_wirelength) /
-                this->predicted_wirelength * 100
+         << (this->actual_wirelength - this->rectilinear_wirelength) /
+                this->actual_wirelength * 100
          << "% optimization" << endl;
     std::cout << "Rectilinear Flooplan is printed!" << std::endl;
     std::cout << "Press any key to continue" << std::endl;
@@ -841,8 +804,7 @@ void sequence_pair_t::print_logs() {
 }
 
 bool sequence_pair_t::find_position_with_area(bool minimize_wirelength,
-                                              bool load_result, int overlap_h,
-                                              int overlap_v) {
+                                              bool load_result) {
     build_constraint_graph();
     constraint_n = this->constraint_graph_h.size() +
                    this->constraint_graph_v.size() +
@@ -915,9 +877,7 @@ bool sequence_pair_t::find_position_with_area(bool minimize_wirelength,
 }
 
 bool sequence_pair_t::find_position_allow_illegal_fill(bool minimize_wirelength,
-                                                       bool load_result,
-                                                       int overlap_h,
-                                                       int overlap_v) {
+                                                       bool load_result) {
     build_constraint_graph();
     mark_transitive_edge();
     simplify_constraint_graph();
@@ -1029,26 +989,24 @@ bool sequence_pair_t::find_position_allow_illegal_fill(bool minimize_wirelength,
                     this->allow_to_overlap[i] = 0;
                 }
             }
-            this->z = ILP_result.z;
+            this->lp_predicted_wirelength = ILP_result.z;
             // cout<<this->z<<endl;
         }
         return true;
     } else {
-        this->z = -1;
+        this->lp_predicted_wirelength = -1;
         return false;
     }
 }
 
 bool sequence_pair_t::find_position_allow_illegal(bool minimize_wirelength,
-                                                  bool load_result,
-                                                  int overlap_h,
-                                                  int overlap_v) {
+                                                  bool load_result) {
     this->allow_to_overlap = vector<int>(sequence_pair_t::sequence_n, 1);
     bool first_attempt = this->find_position_allow_illegal_fill(
-        minimize_wirelength, load_result, overlap_h, overlap_v);
+        minimize_wirelength, load_result);
     // this->print_result();
     if (first_attempt == false) {
-        return this->find_position(true, true, 0, 0);
+        return this->find_position(true, true);
     }
     // to adjust area here
     // this->sequence_pair_validation(1);
@@ -1062,15 +1020,15 @@ bool sequence_pair_t::find_position_allow_illegal(bool minimize_wirelength,
     // cout<<endl;
     this->soft_area_to_w_h_m_5 = new_shape_5;
     bool second_attempt = this->find_position_allow_illegal_fill(
-        minimize_wirelength, load_result, overlap_h, overlap_v);
+        minimize_wirelength, load_result);
     this->soft_area_to_w_h_m_5 = ori_wh;
     vector<int> area_compensation_after = this->get_correct_area();
     if (second_attempt == false) {
-        return this->find_position(true, true, 0, 0);
+        return this->find_position(true, true);
     }
     for (int i = 0; i < sequence_pair_t::sequence_n; ++i) {
         if (area_compensation_after[i] > area_compensation[i]) {
-            return this->find_position(true, true, 0, 0);
+            return this->find_position(true, true);
             ;
         }
     }
@@ -1078,11 +1036,11 @@ bool sequence_pair_t::find_position_allow_illegal(bool minimize_wirelength,
 }
 
 bool sequence_pair_t::find_position_allow_illegal_process() {
-    bool a = this->find_position(true, true, 0, 0);
-    bool b = this->find_position_with_area(true, true, 0, 0);
-    double z1 = this->z;
-    bool c = this->find_position_allow_illegal(true, true, 0, 0);
-    double z2 = this->z;
+    bool a = this->find_position(true, true);
+    bool b = this->find_position_with_area(true, true);
+    double z1 = this->lp_predicted_wirelength;
+    bool c = this->find_position_allow_illegal(true, true);
+    double z2 = this->lp_predicted_wirelength;
     if (a == false && c == false) {
         return false;
     }
@@ -1090,9 +1048,9 @@ bool sequence_pair_t::find_position_allow_illegal_process() {
         return true;
     }
     if (z1 < z2) {
-        bool a = this->find_position(true, true, 0, 0);
-        bool b = this->find_position_with_area(true, true, 0, 0);
-        int x = this->z;
+        bool a = this->find_position(true, true);
+        bool b = this->find_position_with_area(true, true);
+        int x = this->lp_predicted_wirelength;
     }
     return true;
 }
@@ -1265,9 +1223,9 @@ void sequence_pair_t::overlap_optimization() {
     if (ILP_result.legal) {
         this->rectilinear_wirelength = ILP_result.z;
     } else {
-        this->rectilinear_wirelength = this->predicted_wirelength;
+        this->rectilinear_wirelength = this->actual_wirelength;
     }
-    if (this->rectilinear_wirelength < 0) {  // glpk so bad==
+    if (this->rectilinear_wirelength < 0) {  // GLPK issues
         this->rectilinear_wirelength = 1e300 + 1;
     }
 }
@@ -1341,9 +1299,9 @@ double sequence_pair_t::get_wirelength() {
         }
         double delta_x = x_max - x_min;
         double delta_y = y_max - y_min;
-        sum += (delta_x + delta_y) * connections[i].w;
+        sum += (delta_x + delta_y) * connections[i].w;  // HPWL
     }
-    return this->predicted_wirelength = sum;
+    return this->actual_wirelength = sum;
 }
 
 double sequence_pair_t::get_wirelength_rectilinear() {
@@ -1390,7 +1348,7 @@ double sequence_pair_t::get_wirelength_rectilinear() {
         double delta_y = y_max - y_min;
         sum += (delta_x + delta_y) * connections[i].w;
     }
-    cout << "Actual : " << std::setprecision(16) << this->predicted_wirelength
+    cout << "Actual : " << std::setprecision(16) << this->actual_wirelength
          << endl;
     cout << "LP result : " << std::setprecision(16) << this->ILP_result.z
          << endl;
@@ -1441,7 +1399,6 @@ void sequence_pair_t::write_inline() {
         }
     }
     fout << "}" << endl;
-    // this->print_shapes_i();
     fout << "wirelength : " << std::setprecision(16) << this->get_wirelength()
          << endl;
     fout.close();

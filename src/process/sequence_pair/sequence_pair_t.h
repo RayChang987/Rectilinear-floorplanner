@@ -25,18 +25,34 @@ class sequence_pair_t {
     friend class sp_ilp_settings_find_position_with_area_t;
 
    public:
-    // constructor
+    // static functions
+    static void init();
+    static void build_graph();
+    static vector<vec2d_t> find_w_h(
+        uint32_t area, int);  // Calculate a legal shapes for a specific area
+
+    // Constructor
     sequence_pair_t();
-    // essential
+
+    // Functions with the prefix 'find_position' find the corresponding
+    // floorplan
+    // based on the sequence pair
+    // and verify if the current sequence pair form the legal position
     bool find_position(
-        bool, bool, int,
-        int);  // verify if the current sequence pair form the legal position
-    bool find_position_with_area(bool, bool, int, int);
-    bool find_position_allow_illegal_fill(bool, bool, int, int);
-    bool find_position_allow_illegal(bool, bool, int, int);
-    bool find_position_allow_illegal_process();
-    void predict_wirelength(bool, bool);
-    void to_rectilinear();
+        bool, bool);  // Find the floorplan without given widths and heights
+    bool find_position_with_area(
+        bool, bool);  // Find the floorplan with given widths and heights
+    bool
+    find_position_allow_illegal_process();  // This function would call the two
+                                            // functions below. To generate the
+                                            // floorplans with overlapping
+    bool find_position_allow_illegal_fill(
+        bool, bool);  // Due to the overlapping, the area should be compensated
+    bool find_position_allow_illegal(
+        bool, bool);  // The actual function for generating the floorplans
+
+    void to_rectilinear();    // Generate bounding lines from a overlapped
+                              // floorplan
     void plot_rectilinear();  // This function requires the 'bounding_lines' to
                               // be set!
     void save_result_checker();
@@ -44,62 +60,56 @@ class sequence_pair_t {
     // get & set
     void swap_v(int, int);
     void swap_h(int, int);
-
     void set_v(std::vector<int>);
     void set_h(std::vector<int>);
     void set_vi(int, int);
     void set_hi(int, int);
     void set_module_size(int i, int j);
-
+    void set_is_in_seq(int);
     int get_vi(int);
     int get_hi(int);
-
     std::vector<int> get_v();
     std::vector<int> get_h();
 
-    vector<vec2d_t> modules_wh;
-    vector<int> modules_wh_i;
-    vector<vec2d_t> modules_positions;
-    vector<int> h_sequence, v_sequence, fix_sequence_v, fix_sequence_h;
-
-    static int sequence_n;  // number of sequences number
-
-    // static functions
-    static void init();
-    static void build_graph();
-    static vector<vec2d_t> find_w_h(
-        uint32_t area, int);  // calculate a legal shapes for a specific area
-
-    // static variables
-    static int fix_n;
-    static int soft_n;
-
-    static int connection_graph_deg;
-
-    static int fix_start_idx;  // the sequence number of the first fix module
-    static vector<net_t> connections;  // all edges (only one direction)
-    static vector<vector<int>> connections_VE;  // VE graph
+    // Static properties
+    static int sequence_n;            // Number of sequences number
+    static int fixed_n;               // Number of fixed sequences number
+    static int soft_n;                // Number of soft sequences number
+    static int connection_graph_deg;  // The degree of all nets
+    static int fix_start_idx;  // The sequence number of the first fix module
+    static vector<net_t> connections;  // All edges (only one direction)
     static vector<pair<int, int>> deg_w;
-    static vector<bool> seq_is_fix;  // if the module is a fixed module (so the
-                                     // array should be [0,0,...,0,1,...1]
-    vector<vector<vec2d_t>> soft_area_to_w_h_m_5;  // area -> (w, h)
-    vector<vector<vec2d_t>> soft_area_to_w_h_m_9;  // area -> (w, h)
+    static vector<bool> seq_is_fix;  // Whether the module is a fixed module (so
+                                     // the array should be [0,0,...,0,1,...1]
+    vector<vector<vec2d_t>>
+        soft_area_to_w_h_m_5;  // Shapes for the modules with 5 sample points
+    vector<vector<vec2d_t>>
+        soft_area_to_w_h_m_9;  // Shapes for the modules with 9 sample points
     static vector<soft_module_t*>
-        seq_soft_map;  // an array with size equal to # of modules
+        seq_soft_map;  // Mapping from a soft module to its sequence number
     static vector<fixed_module_t*>
-        seq_fixed_map;  // an array with size equal to # of modules
-    static vector<double> modules_area;
-    static unordered_map<const module_t*, int>
-        soft_module_to_id_m;  // from the module to its seq# (for building the
-                              // connections_VE graph)
-    static unordered_map<const module_t*, int>
-        fix_module_to_id_m;  // from the module to its seq# (for building the
-                             // connections_VE graph)
-    double predicted_wirelength = -1;
-    double rectilinear_wirelength = 0;
-    double z = -1;
-    vector<int> add_soft_order;
-    vector<int> is_in_seq;
+        seq_fixed_map;  // Mapping from a fixed module to its sequence number
+    static vector<double>
+        modules_area;  // The area of the modules (indexing by sequence number)
+
+    // Sequence pair
+    // h_sequence and v_sequence are the actual sequence pair
+    vector<int> h_sequence, v_sequence, fix_v_sequence, fix_h_sequence;
+
+    // Properties for resulting floorplan
+    vector<vec2d_t> modules_wh;  // The resulting shapes
+    vector<int> modules_wh_i;
+    vector<vec2d_t> modules_positions;   // The resulting positions
+    double actual_wirelength = -1;       // The actual HPWL without interlocking
+    double rectilinear_wirelength = -1;  // The wirelength after interlocking
+    double lp_predicted_wirelength = -1;  // The wirelength output from LP
+
+    // Properties for sequence pair initialization
+    vector<int>
+        add_soft_order;  // The order of the inserting of the sequence numbers
+    vector<int> is_in_seq;  // Whether the sequence number is inserted
+
+    // Properties for rectilinear floorplans
     std::vector<std::pair<std::vector<vec2d_t>, std::string>> bounding_lines;
     vector<int> carved;
     vector<int> allow_to_overlap;
@@ -136,29 +146,28 @@ class sequence_pair_t {
     ILP_result_t ILP_result;
     vector<vector<int>> result_carving_x, result_carving_y;
     vector<bool> result_carving_x_enable, result_carving_y_enable;
-    // properties
     vector<edge_t> constraint_graph_h, constraint_graph_v;
     vector<vector<int>> is_transitive_h, is_transitive_v;
-    // debug properties
+
+    // Debug properties
     vector<pair<double, double>> logs;
 
-    // initialization
+    // Initialization
     void set_only_fix();
     void init_modules_size();
     void set_fix_sequence();
-    void set_is_in_seq();
     void set_add_order();
 
     vector<vec2d_t> get_LP_res_pos();
     pair<vector<vec2d_t>, vector<int>> get_LP_res_wh();
 
-    // subfunctions
+    // Subfunctions
     bool is_completed();
     void build_constraint_graph();
     void simplify_constraint_graph();
     void mark_transitive_edge();
 
-    // debug
+    // Debug
     void print();
     void print_v();
     void print_h();

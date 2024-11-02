@@ -5,20 +5,19 @@
 #ifndef ICCAD2023PD_SEQUENCE_PAIR_ENUMERATOR_T_H
 #define ICCAD2023PD_SEQUENCE_PAIR_ENUMERATOR_T_H
 
-#include "sequence_pair_t.h"
-#include "process/components/timer.h"
 #include <set>
-using std::set;
-class sequence_pair_enumerator_t{
 
-public:
+#include "process/components/timer.h"
+#include "sequence_pair_t.h"
+using std::set;
+class sequence_pair_enumerator_t {
+   public:
     sequence_pair_enumerator_t();
 
     void generate_sequence_pairs(int n);
 
-    bool add_soft_process(int, bool,int);
-
-    bool add_soft_process_cont(int i,bool with_area, int cutoff, int start_j, int start_k);
+    bool add_soft_process_cont(int i, bool with_area, int cutoff, int start_j,
+                               int start_k);
 
     void validate_all_SP();
 
@@ -34,8 +33,6 @@ public:
     int target_sp_n = 0, current_sp_n = 0;
     double init_timeout, SA_timeout;
     timer init_timer = timer("init timer");
-
-
 };
 
-#endif //ICCAD2023PD_SEQUENCE_PAIR_ENUMERATOR_T_H
+#endif  // ICCAD2023PD_SEQUENCE_PAIR_ENUMERATOR_T_H

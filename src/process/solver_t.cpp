@@ -72,26 +72,6 @@ double solver_t::get_time_left() {
     return runtime - current_time;
 }
 
-void solver_t::load_specific_best() {
-    SA_solver_t SA_solver;
-    case_table_t case_table;
-    int case_id = chip_t::get_similar_case_num();
-    sequence_pair_t SP;
-    bool fnd_cases = false;
-    if (case_id != -1) {
-        fnd_cases = true;
-        SP.v_sequence = case_table.cases[case_id][0];
-        SP.h_sequence = case_table.cases[case_id][1];
-        for (auto& e : SP.is_in_seq) {
-            e = 1;
-        }
-    }
-    if (fnd_cases) {
-        SP.find_position(true, true, 0, 0);
-        SP.find_position_with_area(true, true, 0, 0);
-    }
-}
-
 void solver_t::load_specific_without_cmp() {
     SA_solver_t SA_solver;
     case_table_t case_table;
@@ -103,8 +83,8 @@ void solver_t::load_specific_without_cmp() {
         for (auto& e : SP.is_in_seq) {
             e = 1;
         }
-        SP.find_position(true, true, 0, 0);
-        SP.find_position_with_area(true, true, 0, 0);
+        SP.find_position(true, true);
+        SP.find_position_with_area(true, true);
         SP.print_inline();
         SP.sequence_pair_validation();
     }

@@ -3,28 +3,32 @@
 //
 
 #include "process/SA_solver_t.h"
-#include "process/functional/random_helper.h"
-#include <iostream>
-#include <iomanip>
+
 #include <cmath>
-#include "process/components/timer.h"
-#include "bounding/bounding_line_handler_t.h"
-#include <thread>
-#include <stack>
+#include <iomanip>
+#include <iostream>
 #include <mutex>
+#include <stack>
+#include <thread>
+
+#include "bounding/bounding_line_handler_t.h"
+#include "process/components/timer.h"
+#include "process/functional/random_helper.h"
 static std::stack<sequence_pair_t> legal_neighbors;
 std::mutex legal_neighbors_mutex;
 using std::cout;
 using std::endl;
 bool SA_solver_t::sample_p(double delta_c) {
-    double p = exp(-delta_c/t);
+    double p = exp(-delta_c / t);
     return random_helper::sample(p);
 }
-SA_solver_t::SA_solver_t() {
-}
-void SA_solver_t::run(sequence_pair_enumerator_t & SPEN, double timeout, double init_t, double end_t, bool load_back, double enable_from, double enable_to, bool overlap) {
+SA_solver_t::SA_solver_t() {}
+void SA_solver_t::run(sequence_pair_enumerator_t& SPEN, double timeout,
+                      double init_t, double end_t, bool load_back,
+                      double enable_from, double enable_to, bool overlap) {
     this->swap_enable = vector<int>(sequence_pair_t::sequence_n, 0);
-    for(int i = static_cast<int>(sequence_pair_t::sequence_n * enable_from); i<static_cast<int>(sequence_pair_t::sequence_n * enable_to); ++i){
+    for (int i = static_cast<int>(sequence_pair_t::sequence_n * enable_from);
+         i < static_cast<int>(sequence_pair_t::sequence_n * enable_to); ++i) {
         this->swap_enable[i] = 1;
     }
     this->parameters_init(init_t, end_t);
@@ -36,72 +40,85 @@ void SA_solver_t::run(sequence_pair_enumerator_t & SPEN, double timeout, double 
     double best_wirelength = best_sp.get_wirelength();
     int load_back_cnt = 0;
     int it = 1;
-    while(true){
+    while (true) {
         runtime_timer.timer_end();
-        if(runtime_timer.get_time_elapsed() >= timeout){break;}
+        if (runtime_timer.get_time_elapsed() >= timeout) {
+            break;
+        }
 
         this->it_timer.timer_start();
         sequence_pair_t& SP = SPEN.valid_sequence_pairs[0];
         sequence_pair_t after = find_neighbor_parallel(SP, overlap);
-        //sequence_pair_t after = find_neighbor_sequential(SP);
-        
-        // double SP_wirelength = SP.predicted_wirelength;
-        // double after_wirelength = after.predicted_wirelength;
-        double SP_wirelength = SP.z;
-        double after_wirelength = after.z;
-        if(after_wirelength!=-1){
+        // sequence_pair_t after = find_neighbor_sequential(SP);
+
+        // double SP_wirelength = SP.actual_wirelength;
+        // double after_wirelength = after.actual_wirelength;
+        double SP_wirelength = SP.lp_predicted_wirelength;
+        double after_wirelength = after.lp_predicted_wirelength;
+        if (after_wirelength != -1) {
             SP = after;
         }
-        if(SP_wirelength < best_wirelength && SP_wirelength!=-1){
+        if (SP_wirelength < best_wirelength && SP_wirelength != -1) {
             best_sp = SP;
             best_wirelength = SP_wirelength;
             load_back_cnt = 0;
-        }
-        else{
+        } else {
             load_back_cnt++;
-            if(load_back && SP_wirelength>1.375*best_wirelength){
-                cout<<"Load back..."<<endl;
-                SP = best_sp; //to avoid meaningless searching
+            if (load_back && SP_wirelength > 1.375 * best_wirelength) {
+                cout << "Load back..." << endl;
+                SP = best_sp;  // to avoid meaningless searching
                 load_back_cnt = 0;
             }
         }
-//        if(it%100==0){
-//            double useless1 = best_sp.get_wirelength(true, true);
-//            double useless2 = SPEN.valid_sequence_pairs[0].get_wirelength(true, true);
-//        }
-        if(it%1==0){
+        //        if(it%100==0){
+        //            double useless1 = best_sp.get_wirelength(true, true);
+        //            double useless2 =
+        //            SPEN.valid_sequence_pairs[0].get_wirelength(true, true);
+        //        }
+        if (it % 1 == 0) {
             runtime_timer.print_time_elapsed();
-            cout<<"It : "<<it<<", t = "<<this->t<<endl;
+            cout << "It : " << it << ", t = " << this->t << endl;
             this->it_timer.timer_end();
             this->it_timer.print_time_elapsed();
             best_sp.print_inline();
-            cout<<"current best wirelength : "<<std::setprecision(16)<<best_wirelength<<endl;
-            cout<<"current wirelength : "<<std::setprecision(16)<<SP_wirelength<<endl;
-            cout<<"------------------------------"<<endl;
+            cout << "current best wirelength : " << std::setprecision(16)
+                 << best_wirelength << endl;
+            cout << "current wirelength : " << std::setprecision(16)
+                 << SP_wirelength << endl;
+            cout << "------------------------------" << endl;
         }
         // if(it%1000==0){
         //     SP.sequence_pair_validation(it);
         // }
         runtime_timer.timer_end();
-        if(runtime_timer.get_time_elapsed() >= timeout){break;}
-        this->t*=r;
+        if (runtime_timer.get_time_elapsed() >= timeout) {
+            break;
+        }
+        this->t *= r;
         this->it_timer.timer_end();
-        //this->it_average_time =  (this->it_average_time*(it-1)+this->it_timer.get_time_elapsed()) / it;
-        this->it_average_time =  this->it_timer.get_time_elapsed();
+        // this->it_average_time =
+        // (this->it_average_time*(it-1)+this->it_timer.get_time_elapsed()) /
+        // it;
+        this->it_average_time = this->it_timer.get_time_elapsed();
 
         update_parameters();
 
         it++;
     }
-    //SPEN.validate_all_SP_print_all();
-    SPEN.valid_sequence_pairs[0] = best_sp; //reload the SP back into sequence pairs
+    // SPEN.validate_all_SP_print_all();
+    SPEN.valid_sequence_pairs[0] =
+        best_sp;  // reload the SP back into sequence pairs
     best_sp.sequence_pair_validation();
 }
 
-void find_neighbor_threads_i(int i_start, int i_end, vector<int>* rand_i, vector<int>* rand_j, vector<int>* h_map, vector<int>* v_map, SA_solver_t* SA, sequence_pair_t, bool);
-sequence_pair_t SA_solver_t::find_neighbor_sequential(sequence_pair_t SP){
-    vector<int> v_map(sequence_pair_t::sequence_n), h_map(sequence_pair_t::sequence_n);
-    for(int i = 0; i<sequence_pair_t::sequence_n; ++i){
+void find_neighbor_threads_i(int i_start, int i_end, vector<int>* rand_i,
+                             vector<int>* rand_j, vector<int>* h_map,
+                             vector<int>* v_map, SA_solver_t* SA,
+                             sequence_pair_t, bool);
+sequence_pair_t SA_solver_t::find_neighbor_sequential(sequence_pair_t SP) {
+    vector<int> v_map(sequence_pair_t::sequence_n),
+        h_map(sequence_pair_t::sequence_n);
+    for (int i = 0; i < sequence_pair_t::sequence_n; ++i) {
         v_map[SP.v_sequence[i]] = h_map[SP.h_sequence[i]] = i;
     }
     sequence_pair_t neighbor = SP;
@@ -109,94 +126,120 @@ sequence_pair_t SA_solver_t::find_neighbor_sequential(sequence_pair_t SP){
     vector<int> rand_j = random_helper::rand_list(sequence_pair_t::sequence_n);
     timer find_neighbor_time("find time");
     find_neighbor_time.timer_start();
-    for(int i = 0; i<sequence_pair_t::sequence_n; ++i){
-        for(int j = 0; j<sequence_pair_t::sequence_n; ++j){
+    for (int i = 0; i < sequence_pair_t::sequence_n; ++i) {
+        for (int j = 0; j < sequence_pair_t::sequence_n; ++j) {
             int ii = rand_i[i], jj = rand_j[j];
-            if(sequence_pair_t::seq_is_fix[ii]&&sequence_pair_t::seq_is_fix[jj]){continue;}
+            if (sequence_pair_t::seq_is_fix[ii] &&
+                sequence_pair_t::seq_is_fix[jj]) {
+                continue;
+            }
             int p = v_map[ii], q = h_map[jj];
-            if(swap_enable[ii]==false&&swap_enable[jj]==false){continue;}
-            for(int m = 0; m<2; ++m){
-                for(int n = 0; n<2; ++n){
-                    if(m==0&&n==0){continue;}
-                    if(m){std::swap(neighbor.v_sequence[p], neighbor.v_sequence[q]);}
-                    if(n){std::swap(neighbor.h_sequence[p], neighbor.h_sequence[q]);}
+            if (swap_enable[ii] == false && swap_enable[jj] == false) {
+                continue;
+            }
+            for (int m = 0; m < 2; ++m) {
+                for (int n = 0; n < 2; ++n) {
+                    if (m == 0 && n == 0) {
+                        continue;
+                    }
+                    if (m) {
+                        std::swap(neighbor.v_sequence[p],
+                                  neighbor.v_sequence[q]);
+                    }
+                    if (n) {
+                        std::swap(neighbor.h_sequence[p],
+                                  neighbor.h_sequence[q]);
+                    }
 
-                    timer find_position_timer("find position time (in finding neighbor)");
+                    timer find_position_timer(
+                        "find position time (in finding neighbor)");
                     find_position_timer.timer_start();
-                    bool success = neighbor.find_position(false, true, 0, 0); //6ms at most  (the shapes of the neighbor SP were calculated)
+                    bool success = neighbor.find_position(
+                        false, true);  // 6ms at most  (the shapes of the
+                                       // neighbor SP were calculated)
                     find_position_timer.timer_end();
-                    //find_position_timer.print_time_elapsed();
+                    // find_position_timer.print_time_elapsed();
 
-                    if(success){
+                    if (success) {
                         double delta = get_delta(SP, neighbor, false);
                         bool change = sample_p(delta);
-                        if(change){
+                        if (change) {
                             find_neighbor_time.timer_end();
                             return neighbor;
                         }
                     }
-                    if(m){std::swap(neighbor.v_sequence[p], neighbor.v_sequence[q]);}
-                    if(n){std::swap(neighbor.h_sequence[p], neighbor.h_sequence[q]);}
+                    if (m) {
+                        std::swap(neighbor.v_sequence[p],
+                                  neighbor.v_sequence[q]);
+                    }
+                    if (n) {
+                        std::swap(neighbor.h_sequence[p],
+                                  neighbor.h_sequence[q]);
+                    }
                 }
             }
-
         }
     }
-    return SP; //can't find any neighbor
+    return SP;  // can't find any neighbor
 }
-sequence_pair_t SA_solver_t::find_neighbor_parallel(sequence_pair_t SP, bool overlap) {
-    vector<int> v_map(sequence_pair_t::sequence_n), h_map(sequence_pair_t::sequence_n);
-    for(int i = 0; i<sequence_pair_t::sequence_n; ++i){
+sequence_pair_t SA_solver_t::find_neighbor_parallel(sequence_pair_t SP,
+                                                    bool overlap) {
+    vector<int> v_map(sequence_pair_t::sequence_n),
+        h_map(sequence_pair_t::sequence_n);
+    for (int i = 0; i < sequence_pair_t::sequence_n; ++i) {
         v_map[SP.v_sequence[i]] = h_map[SP.h_sequence[i]] = i;
     }
     vector<int> rand_i = random_helper::rand_list(sequence_pair_t::sequence_n);
     vector<int> rand_j = random_helper::rand_list(sequence_pair_t::sequence_n);
     double thread_n;
-    if(this->t>=0.1){
+    if (this->t >= 0.1) {
         thread_n = 3;
-    }
-    else{
+    } else {
         thread_n = 6;
     }
-    thread_n = std::min(thread_n, static_cast<double>(sequence_pair_t::sequence_n));
-    while(legal_neighbors.size()){legal_neighbors.pop();}
-    vector<std::thread> threads;
-    double x = sequence_pair_t::sequence_n/thread_n;
-
-    for(int i = 0; i<thread_n; ++i){
-        threads.push_back(std::thread(find_neighbor_threads_i, i*x, (i+1)*x, &rand_i, &rand_j, &h_map, &v_map, this, SP, overlap));
+    thread_n =
+        std::min(thread_n, static_cast<double>(sequence_pair_t::sequence_n));
+    while (legal_neighbors.size()) {
+        legal_neighbors.pop();
     }
-    for(int i = 0; i<thread_n; ++i){
+    vector<std::thread> threads;
+    double x = sequence_pair_t::sequence_n / thread_n;
+
+    for (int i = 0; i < thread_n; ++i) {
+        threads.push_back(std::thread(find_neighbor_threads_i, i * x,
+                                      (i + 1) * x, &rand_i, &rand_j, &h_map,
+                                      &v_map, this, SP, overlap));
+    }
+    for (int i = 0; i < thread_n; ++i) {
         threads[i].join();
     }
-    if(legal_neighbors.empty()){
+    if (legal_neighbors.empty()) {
         return SP;
-    }
-    else{
+    } else {
         return legal_neighbors.top();
     }
 }
 
-double SA_solver_t::get_delta(sequence_pair_t & ori, sequence_pair_t& after, bool overlap) {
-    // double ori_wirelength = ori.predicted_wirelength;
+double SA_solver_t::get_delta(sequence_pair_t& ori, sequence_pair_t& after,
+                              bool overlap) {
+    // double ori_wirelength = ori.actual_wirelength;
     // double after_wirelength = after.get_wirelength(true, false);
     bool a, b;
-    if(overlap){
-        a = ori.z;   
-        b = after.z;   
+    if (overlap) {
+        a = ori.lp_predicted_wirelength;
+        b = after.lp_predicted_wirelength;
+    } else {
+        a = ori.find_position(true, true);
+        b = after.find_position(true, true);
     }
-    else{
-        a = ori.find_position(true, true, 0, 0);   
-        b = after.find_position(true, true, 0, 0);   
-    }
-    
-    double ori_wirelength = ori.z;
-    double after_wirelength = after.z;
-    if(after_wirelength<=0||ori_wirelength<=0){
+
+    double ori_wirelength = ori.lp_predicted_wirelength;
+    double after_wirelength = after.lp_predicted_wirelength;
+    if (after_wirelength <= 0 || ori_wirelength <= 0) {
         return 0;
     }
-    double delta = (after_wirelength-ori_wirelength)/ori_wirelength;
-    return delta*10.0;
+    double delta = (after_wirelength - ori_wirelength) / ori_wirelength;
+    return delta * 10.0;
 }
 
 void SA_solver_t::parameters_init(double t, double end_t) {
@@ -212,66 +255,105 @@ double SA_solver_t::get_time_left() {
 }
 
 void SA_solver_t::update_parameters() {
-    if(this->t<=0){return;}
+    if (this->t <= 0) {
+        return;
+    }
     double time_left = this->get_time_left();
-    double it_time = std::max(this->it_average_time, 0.0000001); //to avoid divide by 0
-    double it_left = std::max(time_left/it_time, 1.0);
-    double new_r = pow((this->end_t)/this->t, 1/it_left);
-    this->r =  new_r;
+    double it_time =
+        std::max(this->it_average_time, 0.0000001);  // to avoid divide by 0
+    double it_left = std::max(time_left / it_time, 1.0);
+    double new_r = pow((this->end_t) / this->t, 1 / it_left);
+    this->r = new_r;
 }
 
-void find_neighbor_threads_i(int i_start, int i_end, vector<int>* rand_i, vector<int>* rand_j, vector<int>* h_map, vector<int>* v_map, SA_solver_t* SA,sequence_pair_t SP, bool overlap){
+void find_neighbor_threads_i(int i_start, int i_end, vector<int>* rand_i,
+                             vector<int>* rand_j, vector<int>* h_map,
+                             vector<int>* v_map, SA_solver_t* SA,
+                             sequence_pair_t SP, bool overlap) {
     sequence_pair_t neighbor = SP;
-    for(int i = i_start; i<i_end; ++i){
-        for(int j = 0; j<sequence_pair_t::sequence_n; ++j){
+    for (int i = i_start; i < i_end; ++i) {
+        for (int j = 0; j < sequence_pair_t::sequence_n; ++j) {
             int ii = (*rand_i)[i], jj = (*rand_j)[j];
-            if(sequence_pair_t::seq_is_fix[ii]&&sequence_pair_t::seq_is_fix[jj]){continue;}
+            if (sequence_pair_t::seq_is_fix[ii] &&
+                sequence_pair_t::seq_is_fix[jj]) {
+                continue;
+            }
             int p = (*v_map)[ii], q = (*h_map)[jj];
-            for(int m = 0; m<2; ++m){
-                for(int n = 0; n<2; ++n){
-                    if(m==0&&n==0){continue;}
-                    if(legal_neighbors.size()){return;}
-                    if(m){std::swap(neighbor.v_sequence[p], neighbor.v_sequence[q]);}
-                    if(n){std::swap(neighbor.h_sequence[p], neighbor.h_sequence[q]);}
+            for (int m = 0; m < 2; ++m) {
+                for (int n = 0; n < 2; ++n) {
+                    if (m == 0 && n == 0) {
+                        continue;
+                    }
+                    if (legal_neighbors.size()) {
+                        return;
+                    }
+                    if (m) {
+                        std::swap(neighbor.v_sequence[p],
+                                  neighbor.v_sequence[q]);
+                    }
+                    if (n) {
+                        std::swap(neighbor.h_sequence[p],
+                                  neighbor.h_sequence[q]);
+                    }
                     bool success = false;
-                    if(overlap){
-                        success = neighbor.find_position_allow_illegal_process(); //6ms at most  (the shapes of the neighbor SP were calculated)
-                        //success = neighbor.find_position(true, true, 0, 0); //6ms at most  (the shapes of the neighbor SP were calculated)
-                        if(success){
-                            if(SA->need_practical){
-                                neighbor.bounding_lines.resize(sequence_pair_t::sequence_n);
-                                neighbor.carved = vector<int>(sequence_pair_t::sequence_n, false);
+                    if (overlap) {
+                        success =
+                            neighbor
+                                .find_position_allow_illegal_process();  // 6ms
+                                                                         // at
+                                                                         // most
+                                                                         // (the
+                                                                         // shapes
+                                                                         // of
+                                                                         // the
+                                                                         // neighbor
+                                                                         // SP
+                                                                         // were
+                                                                         // calculated)
+                        // success = neighbor.find_position(true, true, 0, 0);
+                        // //6ms at most  (the shapes of the neighbor SP were
+                        // calculated)
+                        if (success) {
+                            if (SA->need_practical) {
+                                neighbor.bounding_lines.resize(
+                                    sequence_pair_t::sequence_n);
+                                neighbor.carved = vector<int>(
+                                    sequence_pair_t::sequence_n, false);
                                 neighbor.set_bounding_lines();
                                 neighbor.deal_bounding_line();
-                                bool practical_check = bounding_line_handler_t::check_sequence_pair(neighbor); //SA
-                                
-                                if(practical_check==false){
+                                bool practical_check = bounding_line_handler_t::
+                                    check_sequence_pair(neighbor);  // SA
+
+                                if (practical_check == false) {
                                     success = false;
                                 }
                             }
-
                         }
+                    } else {
+                        success = neighbor.find_position(
+                            true, true);  // 6ms at most  (the shapes of the
+                                          // neighbor SP were calculated)
                     }
-                    else{
-                        success = neighbor.find_position(true, true, 0, 0); //6ms at most  (the shapes of the neighbor SP were calculated)
-                    }
-                    if(success){
+                    if (success) {
                         double delta = SA->get_delta(SP, neighbor, overlap);
                         bool change = SA->sample_p(delta);
-                        if(change){
+                        if (change) {
                             legal_neighbors_mutex.lock();
                             legal_neighbors.push(neighbor);
                             legal_neighbors_mutex.unlock();
                             return;
                         }
                     }
-                    if(m){std::swap(neighbor.v_sequence[p], neighbor.v_sequence[q]);}
-                    if(n){std::swap(neighbor.h_sequence[p], neighbor.h_sequence[q]);}
-
+                    if (m) {
+                        std::swap(neighbor.v_sequence[p],
+                                  neighbor.v_sequence[q]);
+                    }
+                    if (n) {
+                        std::swap(neighbor.h_sequence[p],
+                                  neighbor.h_sequence[q]);
+                    }
                 }
             }
-
         }
     }
 }
-
