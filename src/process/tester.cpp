@@ -45,7 +45,7 @@ void tester_t::test_sp() {
         SP.sequence_pair_validation();
         SP.to_rectilinear();
         SP.plot_rectilinear();
-        SP.save_result();
+        SP.save_result_checker();
         SP.print_inline();
     } else {
         cout << "This is not a default testcase, can't load a predetermined "

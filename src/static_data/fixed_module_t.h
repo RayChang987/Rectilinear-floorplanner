@@ -13,7 +13,8 @@ class fixed_module_t : public module_t {
     int xCoord, yCoord;
     int width, height;
     fixed_module_t();
-public:
+
+   public:
     rect_t* rect = nullptr;
     const uint32_t get_area() const override;
 
@@ -23,10 +24,10 @@ public:
 
     bounding_rectangle_t make_bd() override;
 
-    std::pair<bounding_rectangle_t, bool> make_bd(const rect_t& rect) const override;
+    std::pair<bounding_rectangle_t, bool> make_bd(
+        const rect_t& rect) const override;
 
     static fixed_module_t* fileInput(std::fstream& file);
 };
 
-
-#endif //INC_2023PD_FIXED_MODULE_T_H
+#endif  // INC_2023PD_FIXED_MODULE_T_H
