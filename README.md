@@ -63,7 +63,7 @@ If `-t` is specified:
 ```bash
 ./floorplanner -t
 ```
-The program will execute the built-in test to test the specific sequence pair
+The program will execute the built-in test to verify a specific sequence pair instead of running the solver.
 
 ## 📜 Output
 - Floorplan solution written to the specified output file
