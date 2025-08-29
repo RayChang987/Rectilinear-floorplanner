@@ -2,7 +2,7 @@ set(CMAKE_CXX_STANDARD 17)
 #SET(CMAKE_CXX_FLAGS "-O3")
 SET(CMAKE_CXX_FLAGS "-g")
 
-if (APPLE) 
+if (APPLE)
        include_directories("/opt/homebrew/Cellar/glpk/5.0/include")
 endif ()
 
@@ -14,7 +14,7 @@ add_subdirectory(process)
 add_subdirectory(static_data)
 add_subdirectory(utilities)
 
-add_executable(iccad2023PD main.cpp)
+add_executable(floorplanner main.cpp)
 
 #target_compile_definitions(output_data PUBLIC DEBUG_DEF)
 #target_compile_definitions(plugin PUBLIC DEBUG_DEF)
@@ -24,7 +24,7 @@ add_executable(iccad2023PD main.cpp)
 #target_compile_definitions(static_data PUBLIC DEBUG_DEF)
 #target_compile_definitions(utilities PUBLIC DEBUG_DEF)
 
-target_link_libraries(iccad2023PD
+target_link_libraries(floorplanner
         output_data
         process
         bounding
