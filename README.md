@@ -2,7 +2,7 @@
 
 A C++ project for **rectilinear floorplanning**, supporting multiple benchmark input formats.
 The tool provides a basic framework for reading circuits, solving the floorplan problem, and optional visualization and testing.
-
+<img width="379" height="473" alt="image" src="https://github.com/user-attachments/assets/6177ba9e-13a9-4fa2-8e99-3faf5f18d02d" />
 ## ✨ Features
 - Supports **rectilinear floorplanning**
 - Handles **fixed-outline** constraints with **soft modules**
@@ -10,6 +10,7 @@ The tool provides a basic framework for reading circuits, solving the floorplan 
   - [MCNC benchmarks](http://www.cbl.ncsu.edu/benchmarks/)
   - **ICCAD Contest 2023 Problem D** format
 - Modular design with components for parsing, solving, testing, and visualization
+
 
 ## 📂 Project Structure
 ```
