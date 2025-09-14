@@ -1,8 +1,12 @@
 # Rectilinear Floorplanner
+<img width="512" height="420" alt="image" src="https://github.com/user-attachments/assets/e255310f-3638-4a1e-b866-b9f66e5fbec7" />
+<img width="379" height="473" alt="image" src="https://github.com/user-attachments/assets/6177ba9e-13a9-4fa2-8e99-3faf5f18d02d" />
+
+
 
 A C++ project for **rectilinear floorplanning**, supporting multiple benchmark input formats.
 The tool provides a basic framework for reading circuits, solving the floorplan problem, and optional visualization and testing.
-<img width="379" height="473" alt="image" src="https://github.com/user-attachments/assets/6177ba9e-13a9-4fa2-8e99-3faf5f18d02d" />
+
 ## ✨ Features
 - Supports **rectilinear floorplanning**
 - Handles **fixed-outline** constraints with **soft modules**
